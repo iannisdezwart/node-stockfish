@@ -12,18 +12,20 @@ clone the latest Stockfish source code and compile it.
 
 ## Usage
 
-`node index.js` will start the server.
+`node index.js <port>` will start the server at the given port.
 
 ## API Routes
 
 ### POST `/start-analysing`
 
-This will spawn a new Stockfish process and start analysing the given position.
+This will spawn a new Stockfish process which starts analysing the given
+position.
 
 #### Input:
 
 ```ts
 // Either "moves" or "fen" must be provided.
+// The rest of the fields are optional.
 
 interface StartAnalysingRequest
 {
