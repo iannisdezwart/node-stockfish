@@ -1,0 +1,17 @@
+{
+	"name": "node-stockfish-api",
+	"version": "0.0.1",
+	"description": "",
+	"main": "index.js",
+	"scripts": {
+		"postinstall": "tsc && git clone git@github.com:official-stockfish/Stockfish.git && cd Stockfish/src && make build",
+		"start": "node index.js"
+	},
+	"keywords": [],
+	"author": "Iannis de Zwart",
+	"license": "ISC",
+	"dependencies": {
+		"@iannisz/node-api-kit": "^0.0.5"
+	},
+	"type": "module"
+}

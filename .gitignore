@@ -1,0 +1,4 @@
+node_modules/
+Stockfish/
+.jwtsecret
+*.js
