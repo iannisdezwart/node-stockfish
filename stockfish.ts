@@ -32,7 +32,7 @@ export interface StockfishLine
 	// The score for the line.
 	score: StockfishScore
 
-	// The moves of the best line.
+	// The next moves of the line.
 	moves: string[]
 }
 
@@ -201,6 +201,7 @@ export class StockfishInstance
 			// We have too many idle instances.
 			// We will discard this instance.
 
+			this.instance.kill()
 			return
 		}
 
