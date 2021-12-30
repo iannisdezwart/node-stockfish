@@ -6,14 +6,14 @@ lines of play.
 
 ## Installation
 
-A quick `npm i` should do the trick.
+A quick `npm i node-stockfish` should do the trick.
 This will install the necessary node modules, compile the TypeScript code,
 clone the latest Stockfish source code and compile it.
 
 ## Usage
 
 ```js
-import { StockfishInstance } from './index.js'
+import { StockfishInstance } from 'node-stockfish'
 
 // Create a Stockfish instance.
 
