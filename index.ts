@@ -152,7 +152,7 @@ export class StockfishInstance
 		// Initialise fields.
 
 		this.id = randomBytes(16).toString('hex')
-		this.instance = exec('Stockfish/src/stockfish')
+		this.instance = exec(__dirname + '/Stockfish/src/stockfish')
 
 		this.reset()
 
