@@ -396,11 +396,11 @@ export class StockfishInstance
 	/**
 	 * Returns the best lines analysed so far.
 	 */
-	getCurrentBestLines()
+	getCurrentBestLines(): StockfishAnalysis
 	{
 		return {
 			depth: this.currentDepth,
-			bestLines: this.bestLines.get(this.currentDepth)
+			lines: this.bestLines.get(this.currentDepth)
 		}
 	}
 
