@@ -9,6 +9,9 @@ lines of play.
 A quick `npm i node-stockfish` should do the trick.
 This will install the necessary node modules, compile the TypeScript code,
 clone the latest Stockfish source code and compile it.
+Note that the installation will take a while because of the Stockfish compilation.
+On my machine, it takes just under a minute to install.
+The final size of the `node_modules/node-stockfish` directory is just over 100MB on my setup.
 
 ## Usage
 
