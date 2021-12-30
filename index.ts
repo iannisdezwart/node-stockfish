@@ -1,5 +1,7 @@
 import { exec, ChildProcess } from 'child_process'
 import { randomBytes } from 'crypto'
+import { dirname } from 'path'
+import { fileURLToPath } from 'url'
 
 /**
  * Interface holding the options that can be passed to the
@@ -152,7 +154,7 @@ export class StockfishInstance
 		// Initialise fields.
 
 		this.id = randomBytes(16).toString('hex')
-		this.instance = exec(__dirname + '/Stockfish/src/stockfish')
+		this.instance = exec(dirname(fileURLToPath(import.meta.url)) + '/Stockfish/src/stockfish')
 
 		this.reset()
 

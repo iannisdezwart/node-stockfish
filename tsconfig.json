@@ -5,6 +5,7 @@
 			"dom",
 			"esnext"
 		],
-		"moduleResolution": "node"
+		"moduleResolution": "node",
+		"module": "esnext"
 	}
 }
