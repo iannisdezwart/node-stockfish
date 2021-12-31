@@ -150,7 +150,7 @@ export class StockfishInstance
 	analysisListeners: ((analysis: StockfishAnalysis) => void)[]
 
 	// The state of the Stockfish instance.
-	state: 'stopping' | 'ready'
+	state: 'stopping' | 'ready' | 'terminated'
 
 	// Flag indicating whether the Stockfish instance has already been
 	// started in the past. This is used to determine whether to set
@@ -198,6 +198,11 @@ export class StockfishInstance
 
 		this.instance.on('exit', (code: number) =>
 		{
+			if (this.state == 'terminated')
+			{
+				return
+			}
+
 			console.warn(`Stockfish process exited early with code ${ code }, restarting...`)
 			this.initialise()
 		})
@@ -501,5 +506,6 @@ export class StockfishInstance
 	terminate()
 	{
 		this.instance.kill()
+		this.state = 'terminated'
 	}
 }
