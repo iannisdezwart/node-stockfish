@@ -83,6 +83,9 @@ export interface StockfishAnalysis
 	lines: StockfishLine[]
 }
 
+const STOCKFISH_EXECUTABLE_PATH = dirname(fileURLToPath(import.meta.url))
+	+ '/Stockfish/src/stockfish'
+
 /**
  * Class representing a Stockfish instance.
  * Creates a Stockfish child process and communicates with it.
@@ -146,15 +149,37 @@ export class StockfishInstance
 	// Listener functions for the Stockfish instance.
 	analysisListeners: ((analysis: StockfishAnalysis) => void)[]
 
+	// The state of the Stockfish instance.
+	state: 'stopping' | 'ready'
+
+	// Flag indicating whether the Stockfish instance has already been
+	// started in the past. This is used to determine whether to set
+	// the instance in a stopping state or not.
+	// This is used to prevent the instance from not emitting any data
+	// if it is stopped before the first start command is issued.
+	hasStarted = false
+
+	// Flag indicating whose turn it is. This is used to convert the
+	// score to always be in white's perspective.
+	turn: 'white' | 'black'
+
 	/**
 	 * Initialises this Stockfish instance and spawns a Stockfish process.
 	 */
 	constructor()
 	{
+		this.initialise()
+	}
+
+	/**
+	 * Initialises this Stockfish instance and spawns a Stockfish process.
+	 */
+	initialise()
+	{
 		// Initialise fields.
 
 		this.id = randomBytes(16).toString('hex')
-		this.instance = exec(dirname(fileURLToPath(import.meta.url)) + '/Stockfish/src/stockfish')
+		this.instance = exec(STOCKFISH_EXECUTABLE_PATH)
 
 		this.reset()
 
@@ -169,10 +194,19 @@ export class StockfishInstance
 			this.process(chunk)
 		})
 
+		// Handle early termination of the Stockfish process.
+
+		this.instance.on('exit', (code: number) =>
+		{
+			console.warn(`Stockfish process exited early with code ${ code }, restarting...`)
+			this.initialise()
+		})
+
 		// Put the stockfish instance in UCI mode.
 
 		this.instance.stdin.write('uci\n')
 		this.instance.stdin.write('ucinewgame\n')
+		this.state = 'ready'
 	}
 
 	/**
@@ -191,6 +225,7 @@ export class StockfishInstance
 	setBoardstateByFen(fen: string)
 	{
 		this.instance.stdin.write(`position fen ${ fen }\n`)
+		this.turn = fen.split(' ')[1] == 'w' ? 'white' : 'black'
 	}
 
 	/**
@@ -200,6 +235,7 @@ export class StockfishInstance
 	setBoardstateByMoves(moves: string)
 	{
 		this.instance.stdin.write(`position startpos moves ${ moves }\n`)
+		this.turn = moves.split(' ').length % 2 ? 'black' : 'white'
 	}
 
 	/**
@@ -207,6 +243,8 @@ export class StockfishInstance
 	 */
 	startAnalysing(options: StockfishAnalysisOptions)
 	{
+		this.hasStarted = true
+
 		// Reset the analysis data.
 
 		this.reset()
@@ -231,9 +269,18 @@ export class StockfishInstance
 	 */
 	stopAnalysing()
 	{
+		if (!this.hasStarted)
+		{
+			return
+		}
+
 		// Stop the analysis.
 
 		this.instance.stdin.write('stop\n')
+
+		// Set the state to stopping.
+
+		this.state = 'stopping'
 	}
 
 	/**
@@ -267,30 +314,55 @@ export class StockfishInstance
 	 */
 	process(chunk: string)
 	{
-		const info = chunk
+		const lines = chunk
 			.split('\n')
 			.filter(line => line.trim().length > 0)
-			.filter(line => line.startsWith('info'))
 
-		for (const line of info)
+		for (const line of lines)
 		{
-			if (line.includes('pv'))
+			if (line.startsWith('bestmove'))
 			{
-				this.processInfo(line)
+				// The analysis has finished.
+				// Set the state to ready.
+
+				this.state = 'ready'
 			}
-			else if (line.includes('currmove'))
+
+			if (this.state != 'ready')
 			{
+				// The previous analysis has not finished yet.
+				// We will ignore this line.
+
 				continue
 			}
-			else if (line.includes('NNUE evaluation'))
+
+			if (line.startsWith('info'))
 			{
-				continue
+				if (line.includes('pv'))
+				{
+					// The line holds analysis data.
+
+					this.processInfo(line)
+				}
+				else if (line.includes('currmove')
+					|| line.includes('NNUE evaluation'))
+				{
+					// The line holds rubbish data.
+					// We will ignore it.
+
+					continue
+				}
+				else
+				{
+					// This line could not be processed.
+					// We will ignore it, but log it
+					// for debugging purposes.
+
+					console.log('[ not processed ]:')
+					console.log(line)
+				}
 			}
-			else
-			{
-				console.log('[ not processed ]:')
-				console.log(line)
-			}
+
 		}
 	}
 
@@ -351,6 +423,13 @@ export class StockfishInstance
 			throw new Error(`Unknown score type: ${ scoreType }`)
 		}
 
+		if (this.turn == 'black')
+		{
+			// Convert the score to white's perspective.
+
+			score.score *= -1
+		}
+
 		// Parse the moves of the stockfish output.
 
 		const movesIndexBegin = line.indexOf(' pv ') + 4
@@ -368,12 +447,15 @@ export class StockfishInstance
 		linesOfCurrentDepth[lineNumber - 1] = { score, moves }
 
 		const numLinesOfCurrentDepth = linesOfCurrentDepth
-		.filter(line => line != null).length
+			.filter(line => line != null).length
 
 		// Fire the analysis listeners if the analysis of this depth
 		// is completed.
 
-		if (numLinesOfCurrentDepth == this.analysisOptions.lines)
+		const analysisComplete = numLinesOfCurrentDepth == this.analysisOptions.lines
+			|| depth > 1 && numLinesOfCurrentDepth == this.bestLines.get(1).length
+
+		if (analysisComplete)
 		{
 			this.analysisListeners.forEach(listener =>
 			{
@@ -386,8 +468,7 @@ export class StockfishInstance
 
 		// Update the current depth if necessary.
 
-		if (numLinesOfCurrentDepth == this.analysisOptions.lines
-			&& depth > this.currentDepth)
+		if (analysisComplete && depth > this.currentDepth)
 		{
 			this.currentDepth = depth
 		}
