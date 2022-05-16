@@ -4,7 +4,7 @@
 	"description": "",
 	"main": "index.js",
 	"scripts": {
-		"postinstall": "tsc && git clone https://github.com/official-stockfish/Stockfish && cd Stockfish/src && make build",
+		"postinstall": "tsc && /bin/sh install-stockfish.sh",
 		"start": "node index.js"
 	},
 	"keywords": [],
