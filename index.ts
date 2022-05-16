@@ -472,7 +472,8 @@ export class StockfishInstance
 		}
 		else
 		{
-			throw new Error(`Unknown score type: ${ scoreType }`)
+			console.error(`Unknown score type: ${ scoreType }`)
+			return
 		}
 
 		if (this.turn == 'black')
