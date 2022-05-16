@@ -84,6 +84,9 @@ export interface StockfishAnalysis
 
 	// Boolean indicating whether the current posision is a checkmate.
 	checkmate?: boolean
+
+	// Boolean indicating whether the current posision is a draw.
+	draw?: boolean
 }
 
 const STOCKFISH_EXECUTABLE_PATH = dirname(fileURLToPath(import.meta.url))
@@ -377,6 +380,12 @@ export class StockfishInstance
 
 					this.processCheckmate()
 				}
+				else if (line.includes('cp 0'))
+				{
+					// It's a draw.
+
+					this.processDraw()
+				}
 				else if (line.includes('currmove')
 					|| line.includes('NNUE evaluation'))
 				{
@@ -528,6 +537,21 @@ export class StockfishInstance
 				depth: 0,
 				lines: [],
 				checkmate: true
+			})
+		})
+	}
+
+	/**
+	 * Processes a draw line from the Stockfish process.
+	 */
+	processDraw()
+	{
+		this.analysisListeners.forEach(listener =>
+		{
+			listener({
+				depth: 0,
+				lines: [],
+				draw: true
 			})
 		})
 	}
