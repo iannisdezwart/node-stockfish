@@ -1,4 +1,4 @@
-import { exec, ChildProcess } from 'child_process'
+import { spawn, ChildProcess } from 'child_process'
 import { randomBytes } from 'crypto'
 import { dirname } from 'path'
 import { fileURLToPath } from 'url'
@@ -163,6 +163,11 @@ export class StockfishInstance
 	// score to always be in white's perspective.
 	turn: 'white' | 'black'
 
+	// Holds the current analysis options. If the Stockfish process
+	// ever crashes for any reason, this is used to restart the
+	// Stockfish process with the same options.
+	currentAnalysisOptions: StockfishAnalysisOptions
+
 	/**
 	 * Initialises this Stockfish instance and spawns a Stockfish process.
 	 */
@@ -179,7 +184,7 @@ export class StockfishInstance
 		// Initialise fields.
 
 		this.id = randomBytes(16).toString('hex')
-		this.instance = exec(STOCKFISH_EXECUTABLE_PATH)
+		this.instance = spawn(STOCKFISH_EXECUTABLE_PATH)
 
 		this.reset()
 
@@ -189,14 +194,14 @@ export class StockfishInstance
 
 		// Handle the output of the Stockfish process.
 
-		this.instance.stdout.on('data', (chunk: string) =>
+		this.instance.stdout.on('data', (chunk: Buffer) =>
 		{
-			this.process(chunk)
+			this.process(chunk.toString())
 		})
 
 		// Handle early termination of the Stockfish process.
 
-		this.instance.on('exit', (code: number) =>
+		this.instance.once('exit', (code: number) =>
 		{
 			if (this.state == 'terminated')
 			{
@@ -205,6 +210,13 @@ export class StockfishInstance
 
 			console.warn(`Stockfish process exited early with code ${ code }, restarting...`)
 			this.initialise()
+
+			// Restart the running analysis session.
+
+			if (this.currentAnalysisOptions)
+			{
+				this.startAnalysing(this.currentAnalysisOptions)
+			}
 		})
 
 		// Put the stockfish instance in UCI mode.
@@ -248,6 +260,7 @@ export class StockfishInstance
 	 */
 	startAnalysing(options: StockfishAnalysisOptions)
 	{
+		this.currentAnalysisOptions = options
 		this.hasStarted = true
 
 		// Reset the analysis data.
@@ -274,6 +287,12 @@ export class StockfishInstance
 	 */
 	stopAnalysing()
 	{
+		// Delete the analysis options. This causes the Stockfish
+		// process crashes to not restart the analysis session if it
+		// crashes for some reason.
+
+		this.currentAnalysisOptions = null
+
 		if (!this.hasStarted)
 		{
 			return

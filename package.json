@@ -1,6 +1,6 @@
 {
 	"name": "node-stockfish",
-	"version": "0.0.7",
+	"version": "0.1.0",
 	"description": "",
 	"main": "index.js",
 	"scripts": {
@@ -10,5 +10,8 @@
 	"keywords": [],
 	"author": "Iannis de Zwart",
 	"license": "ISC",
-	"type": "module"
+	"type": "module",
+	"dependencies": {
+		"@types/node": "^17.0.33"
+	}
 }
