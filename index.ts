@@ -81,6 +81,9 @@ export interface StockfishAnalysis
 
 	// The lines of the analysis.
 	lines: StockfishLine[]
+
+	// Boolean indicating whether the current posision is a checkmate.
+	checkmate?: boolean
 }
 
 const STOCKFISH_EXECUTABLE_PATH = dirname(fileURLToPath(import.meta.url))
@@ -368,6 +371,12 @@ export class StockfishInstance
 
 					this.processInfo(line)
 				}
+				else if (line.includes('mate 0'))
+				{
+					// It's checkmate.
+
+					this.processCheckmate()
+				}
 				else if (line.includes('currmove')
 					|| line.includes('NNUE evaluation'))
 				{
@@ -395,7 +404,7 @@ export class StockfishInstance
 	 */
 	processInfo(line: string)
 	{
-		if (line.indexOf(' score ') == -1 || line.indexOf(' pv ') == -1
+		if (line.indexOf(' score ') == -1
 			|| line.indexOf(' depth ') == -1
 			|| line.indexOf(' multipv ') == -1)
 		{
@@ -506,6 +515,21 @@ export class StockfishInstance
 		{
 			this.currentDepth = depth
 		}
+	}
+
+	/**
+	 * Processes a checkmate line from the Stockfish process.
+	 */
+	processCheckmate()
+	{
+		this.analysisListeners.forEach(listener =>
+		{
+			listener({
+				depth: 0,
+				lines: [],
+				checkmate: true
+			})
+		})
 	}
 
 	/**
