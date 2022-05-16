@@ -395,6 +395,16 @@ export class StockfishInstance
 	 */
 	processInfo(line: string)
 	{
+		if (line.indexOf(' score ') == -1 || line.indexOf(' pv ') == -1
+			|| line.indexOf(' depth ') == -1
+			|| line.indexOf(' multipv ') == -1)
+		{
+			// The line does not contain any analysis data.
+			// We will ignore it.
+
+			return
+		}
+
 		// Parse the depth of the stockfish output.
 
 		const depthIndexBegin = line.indexOf(' depth ') + 7
