@@ -82,11 +82,9 @@ export interface StockfishAnalysis
 	// The lines of the analysis.
 	lines: StockfishLine[]
 
-	// Boolean indicating whether the current posision is a checkmate.
-	checkmate?: boolean
-
-	// Boolean indicating whether the current posision is a draw.
-	draw?: boolean
+	// Boolean indicating whether the game has been ended because of
+	// a lack of legal moves.
+	noLegalMoves?: boolean
 }
 
 const STOCKFISH_EXECUTABLE_PATH = dirname(fileURLToPath(import.meta.url))
@@ -199,22 +197,28 @@ export class StockfishInstance
 		StockfishInstance.idleInstances.set(this.id, this)
 
 		// Handle the output of the Stockfish process.
+		// TODO: Implement line buffering.
 
 		this.instance.stdout.on('data', (chunk: Buffer) =>
 		{
+			if (process.env.DEBUG == 'true')
+			{
+				console.error(`[ Stockfish ] <<< ${ chunk.toString() }`)
+			}
+
 			this.process(chunk.toString())
 		})
 
 		// Handle early termination of the Stockfish process.
 
-		this.instance.once('exit', (code: number) =>
+		this.instance.once('exit', (code, signal) =>
 		{
 			if (this.state == 'terminated')
 			{
 				return
 			}
 
-			console.warn(`Stockfish process exited early with code ${ code }, restarting...`)
+			console.warn(`Stockfish process exited early with code ${ code } ${ signal }, restarting...`)
 			this.initialise()
 
 			// Restart the running analysis session.
@@ -374,17 +378,12 @@ export class StockfishInstance
 
 					this.processInfo(line)
 				}
-				else if (line.includes('mate 0'))
+				else if (line.includes('mate 0')
+					|| line.includes('cp 0'))
 				{
-					// It's checkmate.
+					// It's checkmate or stalemate.
 
-					this.processCheckmate()
-				}
-				else if (line.includes('cp 0'))
-				{
-					// It's a draw.
-
-					this.processDraw()
+					this.processNoLegalMoves()
 				}
 				else if (line.includes('currmove')
 					|| line.includes('NNUE evaluation'))
@@ -528,31 +527,16 @@ export class StockfishInstance
 	}
 
 	/**
-	 * Processes a checkmate line from the Stockfish process.
+	 * Processes the event of no legal moves.
 	 */
-	processCheckmate()
+	processNoLegalMoves()
 	{
 		this.analysisListeners.forEach(listener =>
 		{
 			listener({
 				depth: 0,
 				lines: [],
-				checkmate: true
-			})
-		})
-	}
-
-	/**
-	 * Processes a draw line from the Stockfish process.
-	 */
-	processDraw()
-	{
-		this.analysisListeners.forEach(listener =>
-		{
-			listener({
-				depth: 0,
-				lines: [],
-				draw: true
+				noLegalMoves: true
 			})
 		})
 	}
@@ -583,7 +567,7 @@ export class StockfishInstance
 	 */
 	terminate()
 	{
-		this.instance.kill()
 		this.state = 'terminated'
+		this.instance.kill()
 	}
 }
