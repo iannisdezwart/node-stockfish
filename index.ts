@@ -172,6 +172,11 @@ export class StockfishInstance
 	// Stockfish process with the same options.
 	currentAnalysisOptions: StockfishAnalysisOptions
 
+	// A buffer for the Stockfish output. Used to keep data that does not
+	// end with a newline. This data should be added to the buffer until
+	// the next newline is found.
+	stockfishOutputBuffer: Buffer
+
 	/**
 	 * Initialises this Stockfish instance and spawns a Stockfish process.
 	 */
@@ -196,8 +201,11 @@ export class StockfishInstance
 
 		StockfishInstance.idleInstances.set(this.id, this)
 
+		// Initialise the output buffer.
+
+		this.stockfishOutputBuffer = Buffer.alloc(0)
+
 		// Handle the output of the Stockfish process.
-		// TODO: Implement line buffering.
 
 		this.instance.stdout.on('data', (chunk: Buffer) =>
 		{
@@ -206,7 +214,27 @@ export class StockfishInstance
 				console.error(`[ Stockfish ] <<< ${ chunk.toString() }`)
 			}
 
-			this.process(chunk.toString())
+			// Prepend the previous buffer to the chunk.
+
+			chunk = Buffer.concat([ this.stockfishOutputBuffer, chunk ])
+
+			// If the last line doesn't end with a newline,
+			// buffer the data until we get a newline.
+
+			const lastNewline = chunk.lastIndexOf('\n')
+
+			if (lastNewline != chunk.length - 1)
+			{
+				this.stockfishOutputBuffer = chunk.slice(lastNewline + 1)
+			}
+			else
+			{
+				this.stockfishOutputBuffer = Buffer.alloc(0)
+			}
+
+			// Process all data that is ready.
+
+			this.process(chunk.slice(0, lastNewline).toString())
 		})
 
 		// Handle early termination of the Stockfish process.
@@ -399,7 +427,7 @@ export class StockfishInstance
 					// We will ignore it, but log it
 					// for debugging purposes.
 
-					console.log('[ not processed ]:')
+					console.log('[ Stockfish: not processed ]:')
 					console.log(line)
 				}
 			}
@@ -471,7 +499,7 @@ export class StockfishInstance
 		}
 		else
 		{
-			console.error(`Unknown score type: ${ scoreType }`)
+			console.error(`Stockfish: unknown score type: ${ scoreType }`)
 			return
 		}
 
@@ -567,6 +595,8 @@ export class StockfishInstance
 	 */
 	terminate()
 	{
+		StockfishInstance.usedInstances.delete(this.id)
+		StockfishInstance.idleInstances.delete(this.id)
 		this.state = 'terminated'
 		this.instance.kill()
 	}
